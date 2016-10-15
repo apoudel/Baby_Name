@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Assignment6</title>
+    <script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>
+    <style type='text/css'>
+    .line {
+        fill: none;
+        stroke-width: 1.5px;
+        clip-path: url(#clip);
+    }
+    .brush .extent {
+    stroke: teal;
+    fill: teal;
+    stroke-opacity: .3;
+    fill-opacity: .4;
+    shape-rendering: crispEdges;
+    }
+
+    .lineMO{
+      fill: none;
+      stroke-width: 3px;
+      clip-path: url(#clip);
+    }
+
+    .axis text{
+        font-family:sans-serif;
+        font-size:12px;
+
+    }
+    .axis path,
+    .axis line{
+      fill: none;
+      stroke:gray;
+      shape-rendering: crisp-edges;
+    }
+    h3{
+      font-family:sans-serif;
+      color: #303030 ;
+
+    }
+    #nameInput{
+      font-family: sans-serif;
+      font-size: 12px;
+    }
+    #key{
+      font-family: sans-serif;
+      font-size: 12px;
+    }
+    #key p1{
+      font-family: sans-serif;
+      font-size: 14px;
+    }
+    #info{
+      position:absolute;
+      width:100px;
+      height:auto;
+      padding:10px;
+      background-color:white;
+      border-radius:10px;
+      box-shadow: 4px 4px 10px rgba(0,0,0,0.4);
+
+    }
+    #key{
+      position:absolute;
+      top: 0px;
+      left: 850px;
+      top: 100px;
+      background-color:white;
+
+    }
+
+    #info.hidden{
+      display:none;
+    }
+
+    #info p{
+      margin:0px;
+      font-family:sans-serif;
+      font-size:12px;
+    }
+
+    </style>
+  </head>
+  <body>
+    <h3> Names Over The Years</h3>
+  <div id="visDiv"></div>
+
+    <div id="info" class="hidden">
+    <p id="Name">Name</p>
+    <p id="Gender">Gender</p>
+    </div>
+
+
+    <div id="nameInput">
+      <input type="text" id="name">
+      Male: <input type="radio" id = "r1" name="gender" value="M">
+      Female: <input type="radio" id = "r2" name="gender" value="F">
+      Both: <input type="radio" id = "r3" name="gender" value="Both">
+      <input type="submit" id="button" value="Add Name">
+    </div>
+
+    <div id="focusAxis"></div>
+    <div id="key"><p1> Double click to Remove</p1></div>
+
+    <script type="text/javascript">
+
+
+  var createVis = function(parent, width, height){
+    var dataset = new Array();
+    var margins = {top:10, bottom: 60, left: 60, right:15};
+
+    var svg = d3.select(parent)
+                  .append("svg")
+                  .attr({"width": width, "height" : height});
+
+    svg.append("defs").append("clipPath")
+      .attr("id", "clip")
+      .append("rect")
+      .attr("width", width)
+      .attr("height", height);
+
+    var chart = svg.append('g')
+                   .attr('transform','translate('+margins.left + ',' + margins.top + ')');
+
+
+    var brushAxis = d3.select("#focusAxis")
+                      .append("svg")
+                      .attr({"width": width, "height" : 100});
+
+    var chartWidth = width - margins.left - margins.right;
+    var chartHeight = height - margins.top - margins.bottom;
+
+    var xScale = d3.scale.linear().range([0,chartWidth]).nice();
+    var yScale = d3.scale.linear().range([chartHeight, 0]).nice();
+
+    var xScale2 = d3.scale.linear().range([0,chartWidth]).nice();
+
+    var color = d3.scale.category10();
+
+
+    var xAxis = d3.svg.axis()
+          .scale(xScale)
+          .orient('bottom');
+
+    var xAxis2 = d3.svg.axis()
+          .scale(xScale2)
+          .orient('bottom');
+
+    var yAxis = d3.svg.axis()
+        .scale(yScale)
+        .orient('left');
+
+    var xAxisG = chart.append("g")
+      .attr({"class": "x axis",
+              "transform": "translate(0," + chartHeight +")"});
+
+    var yAxisG = chart.append("g")
+      .attr({"class": "axis"});
+
+    var xAxisB =  brushAxis.append("g")
+      .attr({"class": "axis",
+              "transform": "translate(60,50)"});
+
+    var brush = d3.svg.brush()
+    .x(xScale2);
+
+    xScale2.domain([1880, 2012]);
+
+    xAxisB.call(xAxis2);
+
+    xAxisB.append("g")
+          .attr("class", "x brush")
+          .call(brush)
+        .selectAll("rect")
+          .attr("y", -20)
+          .attr("height", 40);
+
+   var vis = function(){
+
+     var maxYear = d3.max(dataset, function(d){return d3.max(d.values, function(d){return +d.Year})});
+     var minYear = d3.min(dataset, function(d){return d3.min(d.values, function(d){return +d.Year})});
+
+     var maxCount = d3.max(dataset, function(d){return d3.max(d.values, function(d){return +d.Count})});
+
+     xScale.domain([minYear, maxYear]);
+     yScale.domain([0, maxCount]);
+
+     var line = d3.svg.line()
+       .x(function(d) { return xScale(+d.Year); })
+       .y(function(d) { return yScale(+d.Count); });
+
+    chart.selectAll("path").remove();
+
+    brush.on("brush", brushed);
+
+    color.domain(dataset.map(function(d){return [d.Name, d.Gender];}));
+
+
+      var line = d3.svg.line()
+                  .interpolate("linear")
+                  .x(function(d) { return xScale(+d.Year); })
+                  .y(function(d) { return yScale(+d.Count); });
+
+
+
+   var lines = chart.selectAll("lines")
+ 	                 .data(dataset, function(d){return [d.Name, d.Gender];});
+
+    lines.exit().remove();
+
+  	lines.enter().append("path")
+  	      .attr("class", "line")
+  	      .attr("d", function(d){return line(d.values)})
+  		  	.style("fill","None")
+  		  	.style("stroke",function(d){return color([d.Name, d.Gender]);})
+          .on("mouseover", function(d) {
+             d3.select(this)
+             .attr("class", "lineMO");
+             var info = d3.select("#info");
+             info.select("#Name").text("Name: "+d.Name);
+             info.select("#Gender").text("Gender: "+d.Gender);
+         var coordinates = d3.mouse(svg.node());
+         var bbox = svg.node().getBoundingClientRect();
+         coordinates[0] += bbox.left;
+         coordinates[1] += bbox.top;
+
+         info.style({
+           left: (coordinates[0] + 25) + "px",
+           top: (coordinates[1] ) + "px",
+         })
+         .classed("hidden", false);
+           })
+          .on("mouseout", function() {
+             d3.select(this)
+             .attr("class", "line");
+             var info = d3.select("#info");
+             info.classed("hidden", true);
+          });
+
+
+     xAxisG.call(xAxis)
+     .append('text')
+     .attr({
+            'x':chartWidth/2,
+            'y':margins.bottom/1.5,
+            'text-anchor':'middle'
+          })
+    .text('Year');
+
+    yAxisG.call(yAxis)
+    .append('text')
+    .attr({
+      'x':-chartHeight/2,
+      'y':2* -margins.left/2.5,
+      'text-anchor':'middle',
+      'transform' : 'rotate(-90)'
+    })
+    .text('Count');
+
+
+    var keys = d3.select("#key");
+
+    var smallKey = keys.selectAll("p")
+     .data(dataset);
+
+     smallKey.enter()
+     .append("p")
+     .text(function(d){return d.Name +" "+ d.Gender;})
+     .style("color",function(d){return color([d.Name, d.Gender]);})
+     .style("font-weight", "bold")
+     .on("dblclick",function(d){
+       var removeIndex = dataset.map(function(q){
+         return q.Name+""+q.Gender;})
+       .indexOf(d.Name+""+d.Gender);
+      dataset.splice(removeIndex,1);
+      vis.loadData(dataset);
+      vis();
+      d3.select(this).remove()
+      keys.selectAll("p").data(dataset).style("color",function(d){return color([d.Name, d.Gender]);});
+     });
+
+     function brushed() {
+       xScale.domain(brush.empty() ? xScale2.domain() : brush.extent());
+        chart.selectAll(".line").attr("d", function(d){return line(d.values)});
+        chart.select(".x.axis").call(xAxis);
+     }
+    }
+
+    vis.loadData = function(data){
+      dataset = data;
+      return vis;
+    }
+
+
+    return vis;
+
+  }
+
+  var vis = createVis("#visDiv", 680, 500);
+
+    d3.csv('http://www.cs.middlebury.edu/~candrews/classes/infovis/data/names1880-2012.csv', function(dataset){
+      var nestedData = d3.nest()
+          .key(function(d){return d.Name;})
+          .key(function(d){return d.Gender;})
+          .map(dataset, d3.map);
+
+      var visArray =[];
+      d3.select("#button").on("click", function(){
+
+        if (visArray.length >= 10){
+          alert("Maximum of 10 names allowed!")
+        }
+        else{
+          var v = document.getElementById("name");
+          if (nestedData.get(v.value) === undefined){
+            alert("Sorry, "+v.value+" not found")
+          }
+          else{
+            var malev = {Name:v.value, Gender:"M", values: nestedData.get(v.value).get("M")};
+            var femalev = {Name:v.value, Gender:"F", values: nestedData.get(v.value).get("F")};
+
+            var findM = function(q){
+              return q.Name===v.value && q.Gender==="M";
+            }
+            var findF = function(q){
+              return q.Name===v.value && q.Gender==="F";
+            }
+            var findB = function(q){
+              return q.Name===v.value;
+            }
+
+            if (document.getElementById('r1').checked) {
+              if(!visArray.some(findM)){
+                visArray.push(malev);
+              }
+              else{
+                alert("Name already added");
+              }
+            }
+            else if (document.getElementById('r2').checked){
+                if(!visArray.some(findF)){
+                visArray.push(femalev);
+              }
+              else{
+                alert("Name already added");
+
+              }
+            }
+            else if (document.getElementById('r3').checked){
+              if(!visArray.some(findB)){
+                visArray.push(malev);
+                visArray.push(femalev);
+              }
+              else{
+                alert("Name already added");
+
+              }
+            }
+            else{
+              alert("Please select Male, Female or Both!");
+            }
+            vis.loadData(visArray);
+            vis();
+          }
+        }
+
+      });
+
+    });
+
+  </script>
+
+  </body>
+</html>
